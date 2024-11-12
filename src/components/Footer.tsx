@@ -9,7 +9,7 @@ const Footer = () => {
     const footerLinks = [
         { label: 'Tạo mới', path: '/' },
         { label: 'Liên kết đã tạo', path: '/lien-ket-da-tao' },
-        { label: 'Thống kê', path: '/thong-ke' },
+        { label: 'Bảng giá', path: '/bang-gia' },
         { label: 'Tài khoản', path: '/tai-khoan' },
     ];
 
@@ -58,7 +58,6 @@ const Footer = () => {
                             </ul>
                         </div>
 
-                        {/* Social links section */}
                         <div className='space-y-4'>
                             <h3 className='text-lg font-bold'>Kết nối</h3>
                             <div className='flex space-x-4'>
@@ -81,7 +80,6 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    {/* Copyright section */}
                     <div className='mt-12 pt-8 border-t'>
                         <div className='flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0'>
                             <p className='text-gray-600 text-sm'>

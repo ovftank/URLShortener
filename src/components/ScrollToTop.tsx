@@ -44,7 +44,7 @@ const ScrollToTop = () => {
                         shadow-lg
                         transform hover:scale-110
                         focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-50
-                        z-50
+                        z-40
                     `}
                     aria-label='Scroll to top'
                 >

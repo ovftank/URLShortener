@@ -20,7 +20,7 @@ const Index: React.FC = () => {
 
     return (
         <div className=''>
-            <section className='py-20 px-4'>
+            <section className='py-40 px-4'>
                 <div className='max-w-4xl mx-auto text-center'>
                     <h1 className='text-5xl font-bold mb-6'>URL Shortener</h1>
                     <p className='text-xl text-gray-600 mb-12'>
@@ -54,7 +54,7 @@ const Index: React.FC = () => {
                 <div className='max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8'>
                     <FeatureCard
                         icon={faLink}
-                        title='Link Tùy Chỉnh'
+                        title='Tùy Chỉnh'
                         description='Tạo các đường link thương hiệu'
                     />
                     <FeatureCard
@@ -64,8 +64,8 @@ const Index: React.FC = () => {
                     />
                     <FeatureCard
                         icon={faBolt}
-                        title='Siêu Tốc'
-                        description='Được tối ưu hóa về tốc độ và độ'
+                        title='Nhanh Chóng'
+                        description='Được tối ưu hóa về tốc độ và hiệu suất'
                     />
                 </div>
             </section>
@@ -73,26 +73,30 @@ const Index: React.FC = () => {
             <section className='py-20 px-4 bg-gray-50'>
                 <div className='max-w-6xl mx-auto'>
                     <h2 className='text-3xl font-bold text-center mb-12'>
-                        Cách Thức Hoạt Động
+                        Nhanh Chóng, Đơn Giản
                     </h2>
+                    <p className='text-gray-600 text-center mb-12'>
+                        Tạo link rút gọn chỉ với 3 bước, chia sẻ với mọi người
+                        ngay lập tức
+                    </p>
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-12'>
                         <StepCard
                             icon={faClipboard}
                             step='1'
                             title='Dán Link'
-                            description='Dán link dài của bạn vào ô nhập liệu'
+                            description='Dán link cần rút gọn vào ô input'
                         />
                         <StepCard
                             icon={faLink}
                             step='2'
-                            title='Tạo Link Ngắn'
+                            title='Tạo Link'
                             description='Nhấn nút tạo link để nhận link rút gọn'
                         />
                         <StepCard
                             icon={faShare}
                             step='3'
                             title='Chia Sẻ'
-                            description='Chia sẻ link ngắn gọn với mọi người'
+                            description='Chia sẻ link rút gọn với mọi người'
                         />
                     </div>
                 </div>
@@ -104,8 +108,8 @@ const Index: React.FC = () => {
                         Bắt đầu Rút Gọn Link Ngay Hôm Nay
                     </h2>
                     <p className='text-xl text-gray-600 mb-8'>
-                        Tham gia cùng hàng nghìn người dùng đang sử dụng dịch vụ
-                        của chúng tôi
+                        Đăng ký tài khoản để tuỳ chỉnh, theo dõi liên kết của
+                        bạn.
                     </p>
                     <Link to='/tai-khoan'>
                         <button className='px-8 py-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 text-lg font-semibold'>
