@@ -7,13 +7,42 @@ import {
     faLink,
     faPen,
     faSearch,
+    faSpinner,
     faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useMemo, useState } from 'react';
+import axios from 'axios';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-hot-toast';
 import ModalDetail, { LinkDetailType } from './ModalDetail';
+
+interface ApiResponse {
+    status: number;
+    message: string;
+    data: {
+        links: Array<{
+            id: string;
+            user_id: string;
+            original_url: string;
+            short_url: string;
+            title: string | null;
+            description: string | null;
+            og_image: string | null;
+            is_custom: number;
+            clicks: number;
+            storage_used: number;
+            created_at: string;
+            last_clicked_at: string | null;
+        }>;
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    };
+}
 
 const LinkCreated: React.FC = () => {
     const [selectedLink, setSelectedLink] = useState<LinkDetailType | null>(
@@ -26,42 +55,87 @@ const LinkCreated: React.FC = () => {
         key: keyof LinkDetailType;
         direction: 'asc' | 'desc';
     }>({ key: 'createdAt', direction: 'desc' });
+    const [links, setLinks] = useState<LinkDetailType[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const limit = 10;
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState<{
+        total: number;
+        totalPages: number;
+    }>({ total: 0, totalPages: 0 });
 
-    const [links] = useState<LinkDetailType[]>([
-        {
-            id: '1',
-            originalUrl:
-                'https://example.com/very/long/url/that/needs/to/be/shortened',
-            shortUrl: 'https://ovft.me/abc123',
-            clicks: 145,
-            createdAt: '2024-03-15',
-            title: 'Example Link',
-            description: 'This is an example shortened link',
-            ogImage: 'https://example.com/image.jpg',
-            lastClickedAt: '2024-03-15 14:30',
-            locationStats: [
-                { country: 'Việt Nam', count: 100 },
-                { country: 'USA', count: 30 },
-                { country: 'Japan', count: 15 },
-            ],
-        },
-        {
-            id: '2',
-            originalUrl: 'https://github.com/facebook/react',
-            shortUrl: 'https://ovft.me/xyz789',
-            clicks: 89,
-            createdAt: '2024-03-14',
-            title: 'React GitHub',
-            description: 'React library repository',
-            ogImage: 'https://github.com/favicon.ico',
-            lastClickedAt: '2024-03-15 09:45',
-            locationStats: [
-                { country: 'USA', count: 45 },
-                { country: 'India', count: 25 },
-                { country: 'Việt Nam', count: 19 },
-            ],
-        },
-    ]);
+    const fetchLinks = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const response = await axios.get<ApiResponse>(
+                `/api/links?page=${page}&limit=${limit}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                },
+            );
+
+            const transformedLinks: LinkDetailType[] =
+                response.data.data.links.map((link) => ({
+                    id: link.id,
+                    originalUrl: link.original_url,
+                    shortUrl: link.short_url,
+                    clicks: link.clicks,
+                    createdAt: link.created_at,
+                    title: link.title ?? undefined,
+                    description: link.description ?? undefined,
+                    ogImage: link.og_image ?? undefined,
+                    lastClickedAt: link.last_clicked_at ?? undefined,
+                }));
+
+            setLinks(transformedLinks);
+            setPagination({
+                total: response.data.data.pagination.total,
+                totalPages: response.data.data.pagination.totalPages,
+            });
+        } catch (error) {
+            toast.error('Không thể tải danh sách liên kết');
+            console.error('Error fetching links:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [page, limit]);
+
+    useEffect(() => {
+        fetchLinks();
+    }, [fetchLinks]);
+
+    const handleDelete = async (shortUrl: string) => {
+        if (!window.confirm('Bạn có chắc chắn muốn xóa liên kết này?')) {
+            return;
+        }
+
+        try {
+            const response = await axios.delete<ApiResponse>(
+                `/api/links/${shortUrl}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                },
+            );
+
+            if (response.data.status === 200) {
+                toast.success(response.data.message);
+                fetchLinks();
+            } else {
+                throw new Error(response.data.message);
+            }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : 'Không thể xóa liên kết';
+            toast.error(errorMessage);
+            console.error('Error deleting link:', error);
+        }
+    };
 
     const filteredAndSortedLinks = useMemo(() => {
         let result = [...links];
@@ -159,7 +233,7 @@ const LinkCreated: React.FC = () => {
 
     const copyToClipboard = (id: string, text: string) => {
         navigator.clipboard
-            .writeText(text)
+            .writeText(`${window.location.origin}/${text}`)
             .then(() => {
                 setCopiedLinkId(id);
                 toast.success('Đã sao chép liên kết!');
@@ -173,17 +247,94 @@ const LinkCreated: React.FC = () => {
     };
 
     const handleSave = async (id: string, data: Partial<LinkDetailType>) => {
-        console.log('Saving link with id:', id, 'data:', data);
-    };
+        try {
+            const link = links.find((l) => l.id === id);
+            if (!link) return;
 
-    const handleDelete = (id: string) => {
-        console.log('Deleting link with id:', id);
+            const response = await axios.put(
+                `/api/links/${id}`,
+                {
+                    title: data.title,
+                    description: data.description,
+                    ogImage: data.ogImage,
+                    originalUrl: data.originalUrl,
+                    shortUrl:
+                        data.shortUrl?.replace(
+                            window.location.origin + '/',
+                            '',
+                        ) ?? '',
+                    isCustom: data.isCustom,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                },
+            );
+
+            if (response.data.status === 200) {
+                toast.success('Cập nhật liên kết thành công');
+                await fetchLinks();
+            }
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage =
+                    error.response?.data?.message ??
+                    'Không thể cập nhật liên kết';
+                toast.error(errorMessage);
+            } else {
+                toast.error('Không thể cập nhật liên kết');
+            }
+            console.error('Error updating link:', error);
+        }
     };
 
     const openModal = (link: LinkDetailType) => {
         setSelectedLink(link);
         setIsModalOpen(true);
     };
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const renderPagination = () => (
+        <div className='flex items-center justify-between mt-6 select-none'>
+            <div className='text-sm text-gray-700'>
+                Trang <span className='font-medium'>{page}</span>/{' '}
+                <span className='font-medium'>{pagination.totalPages}</span>
+            </div>
+            <div className='flex gap-2'>
+                <button
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className='px-4 py-2 text-sm bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors'
+                >
+                    Trang trước
+                </button>
+                <button
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page >= pagination.totalPages}
+                    className='px-4 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:hover:bg-black transition-colors'
+                >
+                    Trang tiếp
+                </button>
+            </div>
+        </div>
+    );
+
+    if (isLoading) {
+        return (
+            <div className='flex items-center justify-center min-h-screen'>
+                <FontAwesomeIcon
+                    icon={faSpinner}
+                    className='animate-spin text-3xl'
+                    aria-label='Loading'
+                />
+            </div>
+        );
+    }
 
     return (
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
@@ -233,6 +384,7 @@ const LinkCreated: React.FC = () => {
                                         <div className='flex-1 min-w-0'>
                                             <div className='flex items-center gap-3 mb-2'>
                                                 <h2 className='text-lg font-semibold truncate'>
+                                                    {window.location.origin}/
                                                     {link.shortUrl}
                                                 </h2>
                                                 <button
@@ -281,7 +433,7 @@ const LinkCreated: React.FC = () => {
                                             </button>
                                             <button
                                                 onClick={() =>
-                                                    handleDelete(link.id)
+                                                    handleDelete(link.shortUrl)
                                                 }
                                                 className='p-2 hover:bg-gray-100 text-black rounded-full transition-colors'
                                                 aria-label='Delete link'
@@ -294,6 +446,7 @@ const LinkCreated: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
+                            {renderPagination()}
                         </div>
                     ) : (
                         <div className='text-center py-16 px-4 animate-fadeIn'>

@@ -1,13 +1,6 @@
-import {
-    faClose,
-    faImage,
-    faLink,
-    faSave,
-    faSpinner,
-} from '@fortawesome/free-solid-svg-icons';
+import { faClose, faLink, faSave } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import axios from 'axios';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 interface ModalDetailProps {
@@ -23,14 +16,11 @@ export interface LinkDetailType {
     shortUrl: string;
     clicks: number;
     createdAt: string;
-    ogImage?: string;
     title?: string;
     description?: string;
+    ogImage?: string;
     lastClickedAt?: string;
-    locationStats?: Array<{
-        country: string;
-        count: number;
-    }>;
+    isCustom?: boolean;
 }
 
 interface PreviewCardProps {
@@ -129,10 +119,6 @@ const ModalDetail: React.FC<ModalDetailProps> = ({
         shortUrl: '',
     });
     const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
-    const [isUploading, setIsUploading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedFileName, setSelectedFileName] = useState<string>('');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     useEffect(() => {
         if (link) {
@@ -153,67 +139,12 @@ const ModalDetail: React.FC<ModalDetailProps> = ({
         if (!onSave) return;
 
         try {
-            setIsUploading(true);
-            let imageUrl = formData.ogImage;
-            if (selectedFile) {
-                const formData = new FormData();
-                formData.append('image', selectedFile);
-
-                const response = await axios.post('/api/upload', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                });
-
-                if (response.status !== 200) throw new Error('Upload failed');
-
-                const data = response.data;
-                imageUrl = data.imageUrl;
-            }
-            await onSave(link.id, {
-                ...formData,
-                ogImage: imageUrl,
-            });
-
-            if (selectedFile) {
-                URL.revokeObjectURL(formData.ogImage);
-            }
-            setSelectedFile(null);
+            await onSave(link.id, formData);
             onClose();
         } catch (error) {
             console.error('Error saving changes:', error);
             toast.error('Có lỗi xảy ra khi lưu thay đổi!');
-        } finally {
-            setIsUploading(false);
         }
-    };
-
-    const handleImageUpload = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setSelectedFileName(file.name);
-        if (!file.type.startsWith('image/')) {
-            alert('Please upload an image file');
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            alert('File size should be less than 5MB');
-            return;
-        }
-
-        setSelectedFile(file);
-
-        const previewUrl = URL.createObjectURL(file);
-        setFormData((prev) => ({
-            ...prev,
-            ogImage: previewUrl,
-        }));
-    };
-
-    const triggerImageUpload = () => {
-        fileInputRef.current?.click();
     };
 
     return (
@@ -350,86 +281,45 @@ const ModalDetail: React.FC<ModalDetailProps> = ({
 
                                         <div>
                                             <label className='block text-sm font-medium mb-2'>
-                                                Ảnh thumbnail
+                                                Ảnh thumbnail URL
                                             </label>
-                                            <div className='space-y-2'>
-                                                <div className='flex gap-2'>
-                                                    {selectedFileName && (
-                                                        <div className='flex-1 px-4 py-2 bg-gray-50 border rounded-lg truncate'>
-                                                            {selectedFileName}
-                                                        </div>
-                                                    )}
-                                                    <button
-                                                        type='button'
-                                                        onClick={
-                                                            triggerImageUpload
+                                            <input
+                                                type='url'
+                                                value={formData.ogImage}
+                                                onChange={(e) =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        ogImage: e.target.value,
+                                                    }))
+                                                }
+                                                className='w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-black'
+                                                placeholder='Nhập URL ảnh thumbnail'
+                                            />
+                                            {formData.ogImage && (
+                                                <div className='mt-4'>
+                                                    <ImagePreview
+                                                        ogImage={
+                                                            formData.ogImage
                                                         }
-                                                        className='px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50 min-w-[120px]'
-                                                        disabled={isUploading}
-                                                    >
-                                                        <FontAwesomeIcon
-                                                            icon={
-                                                                isUploading
-                                                                    ? faSpinner
-                                                                    : faImage
-                                                            }
-                                                            className={
-                                                                isUploading
-                                                                    ? 'animate-spin'
-                                                                    : ''
-                                                            }
-                                                        />
-                                                        <span>
-                                                            {isUploading
-                                                                ? 'Đang tải...'
-                                                                : selectedFileName
-                                                                  ? 'Thay đổi ảnh'
-                                                                  : 'Tải lên'}
-                                                        </span>
-                                                    </button>
+                                                        onDelete={() => {
+                                                            setFormData(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    ogImage: '',
+                                                                }),
+                                                            );
+                                                        }}
+                                                    />
                                                 </div>
-                                                <ImagePreview
-                                                    ogImage={formData.ogImage}
-                                                    onDelete={() => {
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            ogImage: '',
-                                                        }));
-                                                        setSelectedFileName('');
-                                                    }}
-                                                />
-                                            </div>
+                                            )}
                                         </div>
-
-                                        <input
-                                            type='file'
-                                            ref={fileInputRef}
-                                            onChange={handleImageUpload}
-                                            accept='image/*'
-                                            className='hidden'
-                                        />
 
                                         <button
                                             type='submit'
-                                            disabled={isUploading}
-                                            className='w-full px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50'
+                                            className='w-full px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2'
                                         >
-                                            {isUploading ? (
-                                                <>
-                                                    <FontAwesomeIcon
-                                                        icon={faSpinner}
-                                                        className='animate-spin'
-                                                    />
-                                                    Đang lưu...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FontAwesomeIcon
-                                                        icon={faSave}
-                                                    />
-                                                    Lưu thay đổi
-                                                </>
-                                            )}
+                                            <FontAwesomeIcon icon={faSave} />
+                                            Lưu thay đổi
                                         </button>
                                     </form>
                                 </div>
@@ -455,31 +345,6 @@ const ModalDetail: React.FC<ModalDetailProps> = ({
                                             </div>
                                         </div>
                                     </div>
-
-                                    {link.locationStats && (
-                                        <div className='bg-gray-50 p-6 rounded-lg'>
-                                            <h3 className='font-semibold mb-4'>
-                                                Vị trí truy cập
-                                            </h3>
-                                            <div className='space-y-2'>
-                                                {link.locationStats.map(
-                                                    (stat) => (
-                                                        <div
-                                                            key={stat.country}
-                                                            className='flex justify-between'
-                                                        >
-                                                            <span>
-                                                                {stat.country}:
-                                                            </span>
-                                                            <span>
-                                                                {stat.count}
-                                                            </span>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         ) : (

@@ -2,16 +2,29 @@ import {
     faCheck,
     faRocket,
     faShield,
+    faSpinner,
     faStar,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { useState } from 'react';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-
-interface PricingFeature {
+interface PlanFeature {
     text: string;
     included: boolean;
+}
+
+interface Plan {
+    id: string;
+    name: string;
+    code: string;
+    monthlyPrice: number;
+    annualPrice: number;
+    description: string;
+    maxLinks: number;
+    maxCustomLinks: number;
+    features: string[];
 }
 
 interface PricingPlan {
@@ -19,7 +32,7 @@ interface PricingPlan {
     price: string;
     originalPrice?: string;
     description: string;
-    features: PricingFeature[];
+    features: PlanFeature[];
     icon: typeof faRocket;
     popular?: boolean;
     buttonText: string;
@@ -28,57 +41,110 @@ interface PricingPlan {
 
 const Pricing: React.FC = () => {
     const [isAnnual, setIsAnnual] = useState(true);
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const pricingPlans: PricingPlan[] = [
-        {
-            name: 'Cơ bản',
-            price: '0đ',
-            description: 'Dành cho người dùng cá nhân',
-            icon: faRocket,
-            features: [
-                { text: '10 liên kết mỗi tháng', included: true },
-                { text: 'Thống kê cơ bản', included: true },
-                { text: 'Tùy chỉnh liên kết', included: false },
-                { text: 'Tải lên ảnh (2MB/ảnh)', included: true },
-                { text: '10 ảnh mỗi tháng', included: true },
-            ],
-            buttonText: 'Bắt đầu miễn phí',
-            buttonLink: `/`,
-        },
-        {
-            name: 'Pro',
-            price: isAnnual ? '349.000đ' : '49.000đ',
-            originalPrice: isAnnual ? '588.000đ' : undefined,
-            description: 'Dành cho người dùng chuyên nghiệp',
-            icon: faShield,
-            popular: true,
-            features: [
-                { text: '50 liên kết mỗi tháng', included: true },
-                { text: 'Thống kê chi tiết', included: true },
-                { text: 'Tùy chỉnh liên kết', included: true },
-                { text: 'Tải lên ảnh (10MB/ảnh)', included: true },
-                { text: '100 ảnh mỗi tháng', included: true },
-            ],
-            buttonText: 'Nâng cấp ngay',
-            buttonLink: `/nang-cap?plan=pro&period=${isAnnual ? 'annual' : 'monthly'}`,
-        },
-        {
-            name: 'Enterprise',
-            price: isAnnual ? '929.000đ' : '129.000đ',
-            originalPrice: isAnnual ? '1.548.000đ' : undefined,
-            description: 'Dành cho doanh nghiệp',
-            icon: faStar,
-            features: [
-                { text: 'Không giới hạn liên kết', included: true },
-                { text: 'Thống kê nâng cao', included: true },
-                { text: 'Tùy chỉnh hoàn toàn', included: true },
-                { text: 'Tải lên ảnh (20MB/ảnh)', included: true },
-                { text: 'Không giới hạn số lượng ảnh', included: true },
-            ],
-            buttonText: 'Nâng cấp ngay',
-            buttonLink: `/nang-cap?plan=enterprise&period=${isAnnual ? 'annual' : 'monthly'}`,
-        },
-    ];
+    useEffect(() => {
+        const fetchPlans = async () => {
+            try {
+                const response = await axios.get('/api/plans');
+                setPlans(response.data.data.plans);
+            } catch (error) {
+                console.error('Failed to fetch plans:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPlans();
+    }, []);
+
+    const formatPrice = (price: number): string => {
+        if (price === 0) return '0đ';
+        return `${price.toLocaleString('vi-VN')}đ`;
+    };
+
+    const getIconForPlan = (code: string) => {
+        switch (code) {
+            case 'basic':
+                return faRocket;
+            case 'pro':
+                return faShield;
+            case 'enterprise':
+                return faStar;
+            default:
+                return faRocket;
+        }
+    };
+
+    const getPlanFeatures = (plan: Plan): PlanFeature[] => {
+        return [
+            {
+                text:
+                    plan.maxLinks === -1
+                        ? 'Không giới hạn liên kết'
+                        : `${plan.maxLinks} liên kết mỗi tháng`,
+                included: true,
+            },
+            {
+                text:
+                    plan.code === 'basic'
+                        ? 'Thống kê cơ bản'
+                        : plan.code === 'pro'
+                          ? 'Thống kê chi tiết'
+                          : 'Thống kê nâng cao',
+                included: true,
+            },
+            {
+                text: 'Tùy chỉnh liên kết',
+                included: plan.code !== 'basic',
+            },
+            {
+                text: 'Tải lên ảnh từ liên kết',
+                included: true,
+            },
+        ];
+    };
+
+    const transformedPlans: PricingPlan[] = [...plans]
+        .sort((a, b) => {
+            const order = { basic: 1, pro: 2, enterprise: 3 };
+            return (
+                order[a.code as keyof typeof order] -
+                order[b.code as keyof typeof order]
+            );
+        })
+        .map((plan) => ({
+            name: plan.name,
+            price: isAnnual
+                ? formatPrice(plan.annualPrice)
+                : formatPrice(plan.monthlyPrice),
+            originalPrice: isAnnual
+                ? formatPrice(Math.floor(plan.annualPrice * 1.4))
+                : undefined,
+            description: plan.description,
+            icon: getIconForPlan(plan.code),
+            features: getPlanFeatures(plan),
+            popular: plan.code === 'pro',
+            buttonText:
+                plan.code === 'basic' ? 'Bắt đầu miễn phí' : 'Nâng cấp ngay',
+            buttonLink:
+                plan.code === 'basic'
+                    ? '/'
+                    : `/nang-cap?plan=${plan.code}&period=${isAnnual ? 'annual' : 'monthly'}`,
+        }));
+
+    if (loading) {
+        return (
+            <div className='min-h-screen flex items-center justify-center'>
+                <FontAwesomeIcon
+                    icon={faSpinner}
+                    className='animate-spin text-3xl'
+                    aria-label='Loading'
+                />
+            </div>
+        );
+    }
 
     return (
         <div className='py-12 md:py-20 px-4 min-h-screen bg-gradient-to-b from-white to-gray-50'>
@@ -126,7 +192,7 @@ const Pricing: React.FC = () => {
                 </div>
 
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8'>
-                    {pricingPlans.map((plan) => (
+                    {transformedPlans.map((plan) => (
                         <div
                             key={plan.name}
                             className={`relative rounded-2xl border ${
@@ -136,7 +202,7 @@ const Pricing: React.FC = () => {
                             } bg-white p-6 md:p-8 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
                         >
                             {plan.popular && (
-                                <div className='absolute -top-4 left-1/2 -translate-x-1/2 bg-black text-white px-3 md:px-4 py-1 rounded-full text-xs md:text-sm font-medium whitespace-nowrap'>
+                                <div className='absolute -top-4 left-0 right-0 mx-auto w-fit bg-black text-white px-3 md:px-4 py-1 rounded-full text-xs md:text-sm font-medium whitespace-nowrap'>
                                     Phổ biến nhất
                                 </div>
                             )}

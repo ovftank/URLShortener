@@ -5,23 +5,30 @@ import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+interface User {
+    id: string;
+    username: string;
+    name: string;
+    plan: string;
+}
+
 const Upgrade = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [countdown, setCountdown] = useState(300);
 
     const plan = searchParams.get('plan');
-    const period = searchParams.get('period') || 'annual'; // Get period from URL
-    const username = localStorage.getItem('username') || '';
+    const period = searchParams.get('period') ?? 'annual';
+
+    const userStr = localStorage.getItem('user');
+    const user: User = userStr ? JSON.parse(userStr) : null;
 
     const bankInfo = {
         bank: 'Timo Bank',
         accountNumber: '0362961990',
         accountHolder: 'TA TUAN ANH',
-        transferContent: `nap ${username} ${period}`,
+        transferContent: `nap ${user?.username ?? ''} ${period}`,
     };
-
-    // Get plan details based on URL params
     const getPlanDetails = () => {
         const isAnnual = period === 'annual';
 
@@ -62,14 +69,13 @@ const Upgrade = () => {
 
     const planDetails = getPlanDetails();
 
-    // Generate QR code URL
     const getQRUrl = () => {
         if (!planDetails) return '';
 
         const params = new URLSearchParams({
             accountName: 'TA TUAN ANH',
             amount: planDetails.price,
-            addInfo: `nap ${username} ${period}`,
+            addInfo: `nap ${user?.username ?? ''} ${period}`,
         });
 
         return `https://img.vietqr.io/image/963388-0362961990-compact.png?${params.toString()}`;
@@ -77,10 +83,18 @@ const Upgrade = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        if (!token) {
+        if (!token || !user) {
             navigate('/dang-nhap');
             toast.error('Vui lòng đăng nhập để nâng cấp tài khoản');
+            return;
         }
+
+        if (user.plan === plan) {
+            navigate('/');
+            toast.error('Bạn đã đăng ký gói này rồi');
+            return;
+        }
+
         if (!planDetails) return;
 
         const timer = setInterval(() => {
@@ -95,7 +109,7 @@ const Upgrade = () => {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [planDetails, navigate]);
+    }, [planDetails, navigate, user, plan]);
 
     const copyToClipboard = (text: string, label: string) => {
         navigator.clipboard
@@ -122,7 +136,7 @@ const Upgrade = () => {
                 <title>Nâng cấp tài khoản | OvFTeam</title>
             </Helmet>
 
-            <div className='max-w-4xl mx-auto'>
+            <div className='max-w-7xl mx-auto'>
                 <div className='text-center mb-10'>
                     <h1 className='text-3xl font-bold mb-4 text-black'>
                         Nâng cấp lên {planDetails?.name}
@@ -134,10 +148,9 @@ const Upgrade = () => {
                 </div>
 
                 <div className='grid md:grid-cols-2 gap-8'>
-                    {/* Left column - Plan details */}
                     <div className='bg-white p-8 rounded-2xl shadow-lg border border-gray-100'>
                         <h2 className='text-xl font-semibold mb-6 flex items-center gap-2'>
-                            <span className='w-1.5 h-1.5 bg-black rounded-full'></span>
+                            <span className='w-1.5 h-1.5 bg-black rounded-full'></span>{' '}
                             Chi tiết gói
                         </h2>
                         <div className='mb-6'>
@@ -171,9 +184,9 @@ const Upgrade = () => {
                         </div>
 
                         <ul className='space-y-4'>
-                            {planDetails?.features.map((feature, index) => (
+                            {planDetails?.features.map((feature) => (
                                 <li
-                                    key={index}
+                                    key={`${planDetails.name}-${feature}`}
                                     className='flex items-center gap-3'
                                 >
                                     <div className='w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center'>
@@ -190,10 +203,9 @@ const Upgrade = () => {
                         </ul>
                     </div>
 
-                    {/* Right column - Payment */}
                     <div className='bg-white p-8 rounded-2xl shadow-lg border border-gray-100'>
                         <h2 className='text-xl font-semibold mb-6 flex items-center gap-2'>
-                            <span className='w-1.5 h-1.5 bg-black rounded-full'></span>
+                            <span className='w-1.5 h-1.5 bg-black rounded-full'></span>{' '}
                             Thanh toán
                         </h2>
 
@@ -286,7 +298,7 @@ const Upgrade = () => {
 
                 <div className='mt-8 text-center'>
                     <p className='text-gray-600 mb-2'>
-                        Gặp khó khăn khi thanh toán?
+                        Gặp kh khăn khi thanh toán?
                     </p>
                     <a
                         href='https://t.me/ovftank'

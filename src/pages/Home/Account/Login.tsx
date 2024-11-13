@@ -1,31 +1,73 @@
-import { faEnvelope, faLock } from '@fortawesome/free-solid-svg-icons';
+import { faLock, faUser } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 
+interface LoginResponse {
+    status: number;
+    message: string;
+    data: {
+        user: {
+            id: string;
+            username: string;
+            name: string;
+            plan: string;
+        };
+        token: string;
+    };
+}
+
 const Login: React.FC = () => {
     const [formData, setFormData] = useState({
-        email: '',
+        username: '',
         password: '',
         rememberMe: false,
     });
+    const [error, setError] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        localStorage.setItem('token', '1234567890');
-        navigate('/tai-khoan');
+        setError('');
+        setIsLoading(true);
+
+        try {
+            const response = await axios.post<LoginResponse>('/api/login', {
+                username: formData.username,
+                password: formData.password,
+            });
+
+            const { token, user } = response.data.data;
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+
+            navigate('/tai-khoan');
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                const errorMessage =
+                    err.response?.status === 401
+                        ? 'Tên đăng nhập hoặc mật khẩu không chính xác'
+                        : (err.response?.data?.message ??
+                          'Đã có lỗi xảy ra. Vui lòng thử lại sau');
+                setError(errorMessage);
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type, checked } = e.target;
+        const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value,
+            [name]: value,
         }));
     };
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -50,28 +92,33 @@ const Login: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className='space-y-6'>
+                    {error && (
+                        <div className='p-3 text-sm text-red-500 bg-red-50 rounded-lg'>
+                            {error}
+                        </div>
+                    )}
                     <div className='space-y-4'>
                         <div>
                             <label
-                                htmlFor='email'
+                                htmlFor='username'
                                 className='block text-sm font-medium mb-2'
                             >
-                                Email
+                                Tên đăng nhập
                             </label>
                             <div className='relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500'>
-                                    <FontAwesomeIcon icon={faEnvelope} />
+                                    <FontAwesomeIcon icon={faUser} />
                                 </div>
                                 <input
-                                    id='email'
-                                    name='email'
-                                    type='email'
-                                    autoComplete='email'
+                                    id='username'
+                                    name='username'
+                                    type='text'
+                                    autoComplete='username'
                                     required
-                                    value={formData.email}
+                                    value={formData.username}
                                     onChange={handleInputChange}
                                     className='block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black/5 transition-all duration-300 hover:border-gray-300'
-                                    placeholder='Email'
+                                    placeholder='Tên đăng nhập'
                                 />
                             </div>
                         </div>
@@ -103,9 +150,10 @@ const Login: React.FC = () => {
                     </div>
                     <button
                         type='submit'
-                        className='w-full px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200'
+                        disabled={isLoading}
+                        className='w-full px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
                     >
-                        Đăng nhập
+                        {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
                     </button>
                     <p className='text-center text-sm text-gray-600'>
                         Chưa có tài khoản?{' '}

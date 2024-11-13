@@ -1,14 +1,14 @@
+import viteImagemin from '@vheemstra/vite-plugin-imagemin';
 import react from '@vitejs/plugin-react';
 import autoprefixer from 'autoprefixer';
 import { readdir, readFile, writeFile } from 'fs/promises';
+import imageminMozjpeg from 'imagemin-mozjpeg';
+import imageminPngquant from 'imagemin-pngquant';
 import JScrewIt from 'jscrewit';
 import { join, resolve } from 'path';
 import tailwindcss from 'tailwindcss';
-import { defineConfig, PluginOption } from 'vite';
+import { defineConfig } from 'vite';
 import obfuscatorPlugin from 'vite-plugin-javascript-obfuscator';
-import viteImagemin from '@vheemstra/vite-plugin-imagemin';
-import imageminMozjpeg from 'imagemin-mozjpeg';
-import imageminPngquant from 'imagemin-pngquant';
 const convertString2Unicode = (s: string) => {
     return s
         .split('')
@@ -84,7 +84,7 @@ export default defineConfig({
                 jpg: imageminMozjpeg(),
                 png: imageminPngquant(),
             },
-        }) as PluginOption,
+        }),
     ],
     build: {
         emptyOutDir: true,

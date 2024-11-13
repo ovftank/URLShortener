@@ -8,14 +8,99 @@ import {
     faShare,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import axios, { AxiosError } from 'axios';
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Index: React.FC = () => {
     const [url, setUrl] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
 
-    const handleCreateLink = () => {
-        console.log('Đang tạo link cho:', url);
+    const isValidDomain = (domain: string): boolean => {
+        if (!domain.includes('.')) return false;
+
+        if (!/^[a-zA-Z0-9]/.test(domain)) return false;
+
+        const domainRegex =
+            /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])*\.[a-zA-Z]{2,}$/;
+        return domainRegex.test(domain);
+    };
+
+    const normalizeUrl = (urlString: string): string => {
+        urlString = urlString.trim();
+
+        try {
+            new URL(urlString);
+            return urlString;
+        } catch {
+            if (
+                !urlString.startsWith('http://') &&
+                !urlString.startsWith('https://')
+            ) {
+                const domainPart = urlString.split('/')[0];
+
+                if (!isValidDomain(domainPart)) {
+                    throw new Error('Invalid domain');
+                }
+
+                return `https://${urlString}`;
+            }
+            throw new Error('Invalid URL');
+        }
+    };
+
+    const handleCreateLink = async () => {
+        if (!url) {
+            toast.error('Vui lòng nhập URL cần rút gọn');
+            return;
+        }
+
+        try {
+            const normalizedUrl = normalizeUrl(url);
+            setIsLoading(true);
+
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                navigate('/tai-khoan/dang-ky');
+                return;
+            }
+
+            const { data } = await axios.post(
+                '/api/links',
+                { originalUrl: normalizedUrl },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    withCredentials: true,
+                },
+            );
+
+            navigate('/lien-ket-da-tao', { state: { linkData: data } });
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Invalid domain') {
+                toast.error('Tên miền không hợp lệ. Vui lòng kiểm tra lại');
+                return;
+            }
+
+            if (axios.isAxiosError(error)) {
+                const axiosError = error as AxiosError<{ message: string }>;
+                if (axiosError.response?.status === 401) {
+                    navigate('/dang-ky');
+                    return;
+                }
+                toast.error(
+                    axiosError.response?.data?.message ?? 'Có lỗi xảy ra',
+                );
+            } else {
+                toast.error('URL không hợp lệ. Vui lòng kiểm tra lại');
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -38,10 +123,13 @@ const Index: React.FC = () => {
                         />
                         <button
                             onClick={handleCreateLink}
-                            className='px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center gap-2'
+                            disabled={isLoading}
+                            className='px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
                         >
-                            Tạo Link
-                            <FontAwesomeIcon icon={faArrowRight} />
+                            {isLoading ? 'Đang xử lý...' : 'Tạo Link'}
+                            {!isLoading && (
+                                <FontAwesomeIcon icon={faArrowRight} />
+                            )}
                         </button>
                     </div>
                 </div>
