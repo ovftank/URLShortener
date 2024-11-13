@@ -1,9 +1,6 @@
-import viteImagemin from '@vheemstra/vite-plugin-imagemin';
 import react from '@vitejs/plugin-react';
 import autoprefixer from 'autoprefixer';
 import { readdir, readFile, writeFile } from 'fs/promises';
-import imageminMozjpeg from 'imagemin-mozjpeg';
-import imageminPngquant from 'imagemin-pngquant';
 import JScrewIt from 'jscrewit';
 import { join, resolve } from 'path';
 import tailwindcss from 'tailwindcss';
@@ -42,7 +39,7 @@ export default defineConfig({
             name: 'create-redirects',
             apply: 'build',
             closeBundle: async () => {
-                const filePath = resolve(__dirname, 'dist', '_redirects');
+                const filePath = resolve(__dirname, 'static', '_redirects');
                 const content = '/*    /index.html    200';
                 try {
                     await writeFile(filePath, content);
@@ -56,7 +53,7 @@ export default defineConfig({
             apply: 'build',
             closeBundle: async () => {
                 try {
-                    const indexPath = resolve(__dirname, 'dist', 'index.html');
+                    const indexPath = resolve(__dirname, 'static', 'index.html');
                     const data = await readFile(indexPath, 'utf8');
                     const TMPL = `document.write('__UNI__')`;
                     const jsString = TMPL.replace(
@@ -66,7 +63,7 @@ export default defineConfig({
                     const jsfuckCode = JScrewIt.encode(jsString);
                     const TMPLHTML = `<script type="text/javascript">${jsfuckCode}</script>`;
                     await writeFile(indexPath, TMPLHTML);
-                    const assetsDir = resolve(__dirname, 'dist', 'assets');
+                    const assetsDir = resolve(__dirname, 'static', 'assets');
                     const files = await readdir(assetsDir);
                     for (const file of files) {
                         if (file.endsWith('.js')) {
@@ -78,17 +75,11 @@ export default defineConfig({
                     console.error('Error:', err);
                 }
             },
-        },
-        viteImagemin({
-            plugins: {
-                jpg: imageminMozjpeg(),
-                png: imageminPngquant(),
-            },
-        }),
+        }
     ],
     build: {
         emptyOutDir: true,
-        manifest: true,
+        outDir: 'static',
     },
     server: {
         proxy: {

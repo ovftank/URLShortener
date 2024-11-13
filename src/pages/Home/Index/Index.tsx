@@ -64,7 +64,8 @@ const Index: React.FC = () => {
             const token = localStorage.getItem('token');
 
             if (!token) {
-                navigate('/tai-khoan/dang-ky');
+                toast.error('Vui lòng đăng nhập để tạo link');
+                navigate('/dang-ky');
                 return;
             }
 

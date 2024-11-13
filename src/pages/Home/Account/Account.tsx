@@ -10,7 +10,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface AccountData {
     profile: {
@@ -66,6 +66,7 @@ const initialAccountData: AccountData = {
 };
 
 const Account: React.FC = () => {
+    const navigate = useNavigate();
     const [accountData, setAccountData] =
         useState<AccountData>(initialAccountData);
     const [loading, setLoading] = useState(true);
@@ -84,7 +85,8 @@ const Account: React.FC = () => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    throw new Error('No authentication token found');
+                    navigate('/dang-nhap');
+                    return;
                 }
 
                 const response = await axios.get('/api/user', {
@@ -109,7 +111,7 @@ const Account: React.FC = () => {
         };
 
         fetchUserData();
-    }, []);
+    }, [navigate]);
 
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,7 +119,9 @@ const Account: React.FC = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                throw new Error('No authentication token found');
+                navigate('/dang-nhap');
+                toast.error('Vui lòng đăng nhập lại');
+                return;
             }
 
             await axios.put(
@@ -151,7 +155,9 @@ const Account: React.FC = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                throw new Error('No authentication token found');
+                navigate('/dang-nhap');
+                toast.error('Vui lòng đăng nhập lại');
+                return;
             }
 
             const response = await axios.put(
@@ -180,10 +186,19 @@ const Account: React.FC = () => {
             setError(null);
             toast.success(response.data.message);
         } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : 'Không thể cập nhật tên';
-            setError(errorMessage);
-            toast.error(errorMessage);
+            if (axios.isAxiosError(err) && err.response?.status === 401) {
+                navigate('/dang-nhap');
+                toast.error(
+                    err.response?.data?.message ?? 'Vui lòng đăng nhập lại',
+                );
+            } else {
+                const errorMessage =
+                    err instanceof Error
+                        ? err.message
+                        : 'Không thể cập nhật tên';
+                setError(errorMessage);
+                toast.error(errorMessage);
+            }
         }
     };
 

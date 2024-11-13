@@ -15,6 +15,7 @@ import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import ModalDetail, { LinkDetailType } from './ModalDetail';
 
 interface ApiResponse {
@@ -45,6 +46,7 @@ interface ApiResponse {
 }
 
 const LinkCreated: React.FC = () => {
+    const navigate = useNavigate();
     const [selectedLink, setSelectedLink] = useState<LinkDetailType | null>(
         null,
     );
@@ -64,6 +66,26 @@ const LinkCreated: React.FC = () => {
         totalPages: number;
     }>({ total: 0, totalPages: 0 });
 
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            sessionStorage.setItem(
+                'linkListScrollPos',
+                window.scrollY.toString(),
+            );
+        };
+
+        const savedScrollPos = sessionStorage.getItem('linkListScrollPos');
+        if (savedScrollPos) {
+            window.scrollTo(0, parseInt(savedScrollPos));
+            sessionStorage.removeItem('linkListScrollPos');
+        }
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
     const fetchLinks = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -78,11 +100,11 @@ const LinkCreated: React.FC = () => {
 
             const transformedLinks: LinkDetailType[] =
                 response.data.data.links.map((link) => ({
-                    id: link.id,
-                    originalUrl: link.original_url,
-                    shortUrl: link.short_url,
-                    clicks: link.clicks,
-                    createdAt: link.created_at,
+                    id: link.id ?? '',
+                    originalUrl: link.original_url ?? '',
+                    shortUrl: link.short_url ?? '',
+                    clicks: link.clicks ?? 0,
+                    createdAt: link.created_at ?? '',
                     title: link.title ?? undefined,
                     description: link.description ?? undefined,
                     ogImage: link.og_image ?? undefined,
@@ -91,16 +113,25 @@ const LinkCreated: React.FC = () => {
 
             setLinks(transformedLinks);
             setPagination({
-                total: response.data.data.pagination.total,
-                totalPages: response.data.data.pagination.totalPages,
+                total: response.data.data.pagination.total ?? 0,
+                totalPages: response.data.data.pagination.totalPages ?? 1,
             });
         } catch (error) {
-            toast.error('Không thể tải danh sách liên kết');
-            console.error('Error fetching links:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                navigate('/dang-nhap');
+                return;
+            }
+
+            toast.error(
+                axios.isAxiosError(error)
+                    ? (error.response?.data?.message ??
+                          'Không thể tải danh sách liên kết')
+                    : 'Không thể tải danh sách liên kết',
+            );
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit]);
+    }, [page, limit, navigate]);
 
     useEffect(() => {
         fetchLinks();
@@ -233,7 +264,7 @@ const LinkCreated: React.FC = () => {
 
     const copyToClipboard = (id: string, text: string) => {
         navigator.clipboard
-            .writeText(`${window.location.origin}/${text}`)
+            .writeText(`${window.location.origin}/s/${text}`)
             .then(() => {
                 setCopiedLinkId(id);
                 toast.success('Đã sao chép liên kết!');
@@ -258,11 +289,7 @@ const LinkCreated: React.FC = () => {
                     description: data.description,
                     ogImage: data.ogImage,
                     originalUrl: data.originalUrl,
-                    shortUrl:
-                        data.shortUrl?.replace(
-                            window.location.origin + '/',
-                            '',
-                        ) ?? '',
+                    shortUrl: data.shortUrl,
                     isCustom: data.isCustom,
                 },
                 {
@@ -274,7 +301,7 @@ const LinkCreated: React.FC = () => {
 
             if (response.data.status === 200) {
                 toast.success('Cập nhật liên kết thành công');
-                await fetchLinks();
+                window.location.reload();
             }
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -294,10 +321,17 @@ const LinkCreated: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handlePageChange = (newPage: number) => {
-        setPage(newPage);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    const handlePageChange = useCallback(
+        (newPage: number) => {
+            const validPage = Math.max(
+                1,
+                Math.min(newPage, pagination.totalPages),
+            );
+            setPage(validPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        [pagination.totalPages],
+    );
 
     const renderPagination = () => (
         <div className='flex items-center justify-between mt-6 select-none'>
@@ -384,7 +418,7 @@ const LinkCreated: React.FC = () => {
                                         <div className='flex-1 min-w-0'>
                                             <div className='flex items-center gap-3 mb-2'>
                                                 <h2 className='text-lg font-semibold truncate'>
-                                                    {window.location.origin}/
+                                                    {window.location.origin}/s/
                                                     {link.shortUrl}
                                                 </h2>
                                                 <button

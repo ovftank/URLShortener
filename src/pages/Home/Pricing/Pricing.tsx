@@ -1,3 +1,4 @@
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
     faCheck,
     faRocket,
@@ -10,15 +11,18 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
+
 interface PlanFeature {
     text: string;
     included: boolean;
 }
 
+type PlanCode = 'basic' | 'pro' | 'enterprise';
+
 interface Plan {
     id: string;
     name: string;
-    code: string;
+    code: PlanCode;
     monthlyPrice: number;
     annualPrice: number;
     description: string;
@@ -33,7 +37,7 @@ interface PricingPlan {
     originalPrice?: string;
     description: string;
     features: PlanFeature[];
-    icon: typeof faRocket;
+    icon: IconDefinition;
     popular?: boolean;
     buttonText: string;
     buttonLink: string;
@@ -64,17 +68,13 @@ const Pricing: React.FC = () => {
         return `${price.toLocaleString('vi-VN')}đ`;
     };
 
-    const getIconForPlan = (code: string) => {
-        switch (code) {
-            case 'basic':
-                return faRocket;
-            case 'pro':
-                return faShield;
-            case 'enterprise':
-                return faStar;
-            default:
-                return faRocket;
-        }
+    const getIconForPlan = (code: PlanCode): IconDefinition => {
+        const iconMap: Record<PlanCode, IconDefinition> = {
+            basic: faRocket,
+            pro: faShield,
+            enterprise: faStar,
+        };
+        return iconMap[code] ?? faRocket;
     };
 
     const getPlanFeatures = (plan: Plan): PlanFeature[] => {
@@ -108,11 +108,12 @@ const Pricing: React.FC = () => {
 
     const transformedPlans: PricingPlan[] = [...plans]
         .sort((a, b) => {
-            const order = { basic: 1, pro: 2, enterprise: 3 };
-            return (
-                order[a.code as keyof typeof order] -
-                order[b.code as keyof typeof order]
-            );
+            const order: Record<PlanCode, number> = {
+                basic: 1,
+                pro: 2,
+                enterprise: 3,
+            };
+            return order[a.code] - order[b.code];
         })
         .map((plan) => ({
             name: plan.name,

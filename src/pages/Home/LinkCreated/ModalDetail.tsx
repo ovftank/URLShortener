@@ -233,7 +233,7 @@ const ModalDetail: React.FC<ModalDetailProps> = ({
                                                     onChange={(e) =>
                                                         setFormData((prev) => ({
                                                             ...prev,
-                                                            shortUrl: `${window.location.origin}/${e.target.value}`,
+                                                            shortUrl: `${e.target.value}`,
                                                         }))
                                                     }
                                                     className='flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-black'
