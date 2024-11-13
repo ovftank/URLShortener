@@ -195,8 +195,6 @@ export class LinkController {
                     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
                 </head>
                 <body>
-                    <h1>Chuyển hướng...</h1>
-                    <p>Nếu bạn không tự động chuyển hướng, hãy nhấn <a href="${link.original_url}">vào đây</a>.</p>
                     <script>window.location.href = "${link.original_url}";</script>
                 </body>
                 </html>
@@ -240,16 +238,34 @@ export class LinkController {
             const token = authHeader.split(' ')[1];
             const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
             const { id } = req.params;
-            const { title, description, ogImage, isCustom, shortUrl, originalUrl } = req.body;
+            const {
+                title,
+                description,
+                ogImage,
+                isCustom,
+                shortUrl,
+                originalUrl,
+            } = req.body;
 
-                if (!title && !description && !ogImage && isCustom === undefined && !shortUrl && !originalUrl) {
+            if (
+                !title &&
+                !description &&
+                !ogImage &&
+                isCustom === undefined &&
+                !shortUrl &&
+                !originalUrl
+            ) {
                 return res.status(400).json({
                     status: 400,
                     message: 'Cần ít nhất một trường để cập nhật',
                 });
             }
 
-            if (originalUrl && !originalUrl.startsWith('http://') && !originalUrl.startsWith('https://')) {
+            if (
+                originalUrl &&
+                !originalUrl.startsWith('http://') &&
+                !originalUrl.startsWith('https://')
+            ) {
                 return res.status(400).json({
                     status: 400,
                     message: 'URL gốc phải bắt đầu bằng http:// hoặc https://',
@@ -285,7 +301,8 @@ export class LinkController {
             if ((error as Error).message === 'Link not found or unauthorized') {
                 return res.status(404).json({
                     status: 404,
-                    message: 'Không tìm thấy liên kết hoặc không có quyền cập nhật',
+                    message:
+                        'Không tìm thấy liên kết hoặc không có quyền cập nhật',
                 });
             }
 

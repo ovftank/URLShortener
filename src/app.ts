@@ -12,7 +12,6 @@ import express, {
     RequestHandler,
     Response,
 } from 'express';
-import helmet from 'helmet';
 import path from 'path';
 import { Database } from 'sqlite';
 
@@ -59,11 +58,6 @@ export class App {
     }
 
     private setupMiddleware(): void {
-        this.app.use(
-            helmet({
-                crossOriginResourcePolicy: { policy: 'cross-origin' },
-            })
-        );
         this.app.use(cors());
         this.app.use(compression());
         this.app.use(express.json());

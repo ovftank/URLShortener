@@ -163,6 +163,7 @@ export class LinkService {
 
         const setFields: string[] = [];
         const values: any[] = [];
+        setFields.push('is_custom = 1');
 
         if (updates.title !== undefined) {
             setFields.push('title = ?');
